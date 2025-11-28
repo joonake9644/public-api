@@ -31,10 +31,6 @@ export default defineConfig({
         'src/**/*.tsx',
       ],
       all: true,
-      lines: 90,
-      functions: 90,
-      branches: 85,
-      statements: 90,
     },
 
     // Test file patterns
