@@ -16,7 +16,6 @@ const LINE_COLORS: Record<string, string> = {
 
 const LINES = ['1호선', '2호선', '3호선', '4호선', '5호선', '6호선', '7호선', '8호선'];
 
-// 시간대 순서
 const TIME_SLOTS = [
     '5시30분', '6시00분', '6시30분', '7시00분', '7시30분', '8시00분', '8시30분', '9시00분', '9시30분',
     '10시00분', '10시30분', '11시00분', '11시30분', '12시00분', '12시30분', '13시00분', '13시30분',
@@ -46,21 +45,18 @@ interface ApiResponse {
     };
 }
 
-// 혼잡도 수준 계산
-function getCongestionLevel(value: number): { level: string; color: string; bgColor: string } {
-    if (value <= 50) return { level: '여유', color: '#10B981', bgColor: 'rgba(16, 185, 129, 0.2)' };
-    if (value <= 80) return { level: '보통', color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.2)' };
-    if (value <= 100) return { level: '혼잡', color: '#F97316', bgColor: 'rgba(249, 115, 22, 0.2)' };
-    return { level: '매우혼잡', color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.2)' };
+function getCongestionLevel(value: number): { level: string; color: string } {
+    if (value <= 50) return { level: '여유', color: '#34C759' };
+    if (value <= 80) return { level: '보통', color: '#FF9500' };
+    if (value <= 100) return { level: '혼잡', color: '#FF3B30' };
+    return { level: '매우혼잡', color: '#AF52DE' };
 }
 
-// 현재 시간대 구하기
 function getCurrentTimeSlot(): string {
     const now = new Date();
     const hours = now.getHours();
     const minutes = now.getMinutes();
-    const timeKey = `${hours}시${minutes >= 30 ? '30' : '00'}분`;
-    return timeKey;
+    return `${hours}시${minutes >= 30 ? '30' : '00'}분`;
 }
 
 export default function SubwayPage() {
@@ -72,8 +68,8 @@ export default function SubwayPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [allData, setAllData] = useState<CongestionRecord[]>([]);
+    const [currentTimeSlot, setCurrentTimeSlot] = useState<string>('');
 
-    // 전체 데이터 로드
     const loadAllData = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -83,10 +79,10 @@ export default function SubwayPage() {
             if (result.success && result.data?.data) {
                 setAllData(result.data.data);
             } else {
-                setError('데이터를 불러오는데 실패했습니다.');
+                setError('데이터를 불러오지 못했습니다.');
             }
         } catch {
-            setError('서버 연결에 실패했습니다.');
+            setError('서버에 연결할 수 없습니다.');
         } finally {
             setLoading(false);
         }
@@ -94,15 +90,13 @@ export default function SubwayPage() {
 
     useEffect(() => {
         loadAllData();
+        setCurrentTimeSlot(getCurrentTimeSlot());
     }, [loadAllData]);
 
-    // 호선 변경 시 역 목록 업데이트
     useEffect(() => {
         if (allData.length > 0) {
             const lineStations = [...new Set(
-                allData
-                    .filter(record => record.호선 === selectedLine)
-                    .map(record => record.출발역)
+                allData.filter(r => r.호선 === selectedLine).map(r => r.출발역)
             )];
             setStations(lineStations);
             if (lineStations.length > 0 && !lineStations.includes(selectedStation)) {
@@ -111,7 +105,6 @@ export default function SubwayPage() {
         }
     }, [selectedLine, allData, selectedStation]);
 
-    // 역/방향 변경 시 혼잡도 데이터 업데이트
     useEffect(() => {
         if (allData.length > 0 && selectedStation) {
             const record = allData.find(
@@ -121,156 +114,254 @@ export default function SubwayPage() {
         }
     }, [selectedLine, selectedStation, direction, allData]);
 
-    const currentTimeSlot = getCurrentTimeSlot();
-    const currentCongestion = congestionData ? parseFloat(String(congestionData[currentTimeSlot] || '0')) : 0;
+    const currentCongestion = congestionData && currentTimeSlot
+        ? parseFloat(String(congestionData[currentTimeSlot] || '0'))
+        : 0;
     const currentLevel = getCongestionLevel(currentCongestion);
 
     return (
-        <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)', color: '#fff', padding: '2rem' }}>
-            <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-                {/* 헤더 */}
-                <header style={{ marginBottom: '2rem', textAlign: 'center' }}>
-                    <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                        🚇 서울 지하철 혼잡도
+        <div style={{
+            minHeight: '100vh',
+            background: '#f5f5f7',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif',
+        }}>
+            {/* Header */}
+            <header style={{
+                background: 'rgba(255,255,255,0.8)',
+                backdropFilter: 'blur(20px)',
+                borderBottom: '1px solid rgba(0,0,0,0.1)',
+                padding: '1rem 2rem',
+                position: 'sticky',
+                top: 0,
+                zIndex: 100,
+            }}>
+                <div style={{ maxWidth: '980px', margin: '0 auto' }}>
+                    <h1 style={{
+                        fontSize: '1.5rem',
+                        fontWeight: 600,
+                        color: '#1d1d1f',
+                        margin: 0,
+                        letterSpacing: '-0.02em',
+                    }}>
+                        지하철 혼잡도
                     </h1>
-                    <p style={{ color: '#94a3b8', fontSize: '1rem' }}>
-                        실시간 호선별 혼잡도를 확인하세요
-                    </p>
-                </header>
-
-                {/* 호선 선택 버튼 */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center', marginBottom: '2rem' }}>
-                    {LINES.map(line => (
-                        <button
-                            key={line}
-                            onClick={() => setSelectedLine(line)}
-                            style={{
-                                padding: '0.75rem 1.5rem',
-                                borderRadius: '9999px',
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontWeight: 'bold',
-                                fontSize: '1rem',
-                                transition: 'all 0.2s',
-                                background: selectedLine === line ? LINE_COLORS[line] : 'rgba(255,255,255,0.1)',
-                                color: selectedLine === line ? '#fff' : '#94a3b8',
-                                transform: selectedLine === line ? 'scale(1.05)' : 'scale(1)',
-                                boxShadow: selectedLine === line ? `0 4px 20px ${LINE_COLORS[line]}80` : 'none',
-                            }}
-                        >
-                            {line}
-                        </button>
-                    ))}
                 </div>
+            </header>
 
-                {/* 역 선택 및 방향 선택 */}
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '2rem', flexWrap: 'wrap' }}>
-                    <select
-                        value={selectedStation}
-                        onChange={(e) => setSelectedStation(e.target.value)}
-                        style={{
-                            padding: '0.75rem 1.5rem',
-                            borderRadius: '0.5rem',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            background: 'rgba(255,255,255,0.1)',
-                            color: '#fff',
-                            fontSize: '1rem',
-                            cursor: 'pointer',
-                            minWidth: '200px',
-                        }}
-                    >
-                        {stations.map(station => (
-                            <option key={station} value={station} style={{ background: '#1a1a2e', color: '#fff' }}>
-                                {station}
-                            </option>
-                        ))}
-                    </select>
-
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        {(['상선', '하선'] as const).map(dir => (
+            <main style={{ maxWidth: '980px', margin: '0 auto', padding: '2rem' }}>
+                {/* 호선 선택 */}
+                <section style={{ marginBottom: '2rem' }}>
+                    <div style={{
+                        display: 'flex',
+                        gap: '8px',
+                        flexWrap: 'wrap',
+                        justifyContent: 'center',
+                    }}>
+                        {LINES.map(line => (
                             <button
-                                key={dir}
-                                onClick={() => setDirection(dir)}
+                                key={line}
+                                onClick={() => setSelectedLine(line)}
                                 style={{
-                                    padding: '0.75rem 1.5rem',
-                                    borderRadius: '0.5rem',
-                                    border: '1px solid rgba(255,255,255,0.2)',
+                                    padding: '10px 20px',
+                                    borderRadius: '20px',
+                                    border: 'none',
                                     cursor: 'pointer',
-                                    fontWeight: direction === dir ? 'bold' : 'normal',
-                                    background: direction === dir ? LINE_COLORS[selectedLine] : 'rgba(255,255,255,0.1)',
-                                    color: '#fff',
-                                    transition: 'all 0.2s',
+                                    fontSize: '14px',
+                                    fontWeight: 500,
+                                    transition: 'all 0.2s ease',
+                                    background: selectedLine === line ? LINE_COLORS[line] : '#fff',
+                                    color: selectedLine === line ? '#fff' : '#1d1d1f',
+                                    boxShadow: selectedLine === line
+                                        ? `0 4px 12px ${LINE_COLORS[line]}40`
+                                        : '0 1px 3px rgba(0,0,0,0.1)',
                                 }}
                             >
-                                {dir === '상선' ? '⬆️ 상행' : '⬇️ 하행'}
+                                {line}
                             </button>
                         ))}
                     </div>
-                </div>
+                </section>
 
-                {/* 로딩/에러 상태 */}
+                {/* 역/방향 선택 */}
+                <section style={{
+                    background: '#fff',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    marginBottom: '1.5rem',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <select
+                            value={selectedStation}
+                            onChange={(e) => setSelectedStation(e.target.value)}
+                            style={{
+                                flex: 1,
+                                minWidth: '180px',
+                                padding: '12px 16px',
+                                borderRadius: '10px',
+                                border: '1px solid #d2d2d7',
+                                background: '#fff',
+                                color: '#1d1d1f',
+                                fontSize: '15px',
+                                cursor: 'pointer',
+                                outline: 'none',
+                            }}
+                        >
+                            {stations.map(station => (
+                                <option key={station} value={station}>{station}</option>
+                            ))}
+                        </select>
+
+                        <div style={{
+                            display: 'flex',
+                            background: '#f5f5f7',
+                            borderRadius: '10px',
+                            padding: '4px',
+                        }}>
+                            {(['상선', '하선'] as const).map(dir => (
+                                <button
+                                    key={dir}
+                                    onClick={() => setDirection(dir)}
+                                    style={{
+                                        padding: '8px 20px',
+                                        borderRadius: '8px',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        fontWeight: 500,
+                                        transition: 'all 0.2s',
+                                        background: direction === dir ? '#fff' : 'transparent',
+                                        color: direction === dir ? '#1d1d1f' : '#86868b',
+                                        boxShadow: direction === dir ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                    }}
+                                >
+                                    {dir === '상선' ? '상행' : '하행'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* 로딩 */}
                 {loading && (
-                    <div style={{ textAlign: 'center', padding: '3rem' }}>
-                        <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
-                        <p>데이터를 불러오는 중...</p>
+                    <div style={{
+                        textAlign: 'center',
+                        padding: '60px 20px',
+                        background: '#fff',
+                        borderRadius: '16px',
+                    }}>
+                        <div style={{
+                            width: '32px',
+                            height: '32px',
+                            border: '3px solid #f5f5f7',
+                            borderTop: '3px solid #0071e3',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite',
+                            margin: '0 auto 16px',
+                        }} />
+                        <p style={{ color: '#86868b', fontSize: '15px', margin: 0 }}>불러오는 중...</p>
+                        <style>{`@keyframes spin { to { transform: rotate(360deg); }}`}</style>
                     </div>
                 )}
 
+                {/* 에러 */}
                 {error && (
-                    <div style={{ textAlign: 'center', padding: '3rem', background: 'rgba(239, 68, 68, 0.2)', borderRadius: '1rem' }}>
-                        <p style={{ color: '#EF4444' }}>{error}</p>
+                    <div style={{
+                        textAlign: 'center',
+                        padding: '40px 20px',
+                        background: '#fff',
+                        borderRadius: '16px',
+                    }}>
+                        <p style={{ color: '#86868b', fontSize: '15px', marginBottom: '16px' }}>{error}</p>
                         <button
                             onClick={loadAllData}
-                            style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: '#EF4444', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}
+                            style={{
+                                padding: '10px 24px',
+                                background: '#0071e3',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '20px',
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                            }}
                         >
                             다시 시도
                         </button>
                     </div>
                 )}
 
-                {/* 현재 혼잡도 카드 */}
-                {congestionData && !loading && (
+                {/* 혼잡도 카드 */}
+                {congestionData && !loading && currentTimeSlot && (
                     <>
-                        <div style={{
-                            background: currentLevel.bgColor,
-                            border: `2px solid ${currentLevel.color}`,
-                            borderRadius: '1rem',
-                            padding: '2rem',
-                            marginBottom: '2rem',
+                        <section style={{
+                            background: '#fff',
+                            borderRadius: '16px',
+                            padding: '32px',
+                            marginBottom: '1.5rem',
                             textAlign: 'center',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                         }}>
-                            <p style={{ color: '#94a3b8', marginBottom: '0.5rem' }}>현재 시간 ({currentTimeSlot}) 혼잡도</p>
-                            <div style={{ fontSize: '4rem', fontWeight: 'bold', color: currentLevel.color }}>
-                                {currentCongestion.toFixed(1)}%
-                            </div>
+                            <p style={{
+                                fontSize: '13px',
+                                color: '#86868b',
+                                marginBottom: '8px',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.02em',
+                            }}>
+                                현재 혼잡도 · {currentTimeSlot.replace('시', ':').replace('분', '')}
+                            </p>
                             <div style={{
+                                fontSize: '64px',
+                                fontWeight: 700,
+                                color: currentLevel.color,
+                                lineHeight: 1,
+                                marginBottom: '12px',
+                                letterSpacing: '-0.03em',
+                            }}>
+                                {currentCongestion.toFixed(0)}
+                                <span style={{ fontSize: '32px', fontWeight: 500 }}>%</span>
+                            </div>
+                            <span style={{
                                 display: 'inline-block',
-                                padding: '0.5rem 1rem',
-                                background: currentLevel.color,
-                                color: '#fff',
-                                borderRadius: '9999px',
-                                fontWeight: 'bold',
-                                marginTop: '0.5rem',
+                                padding: '6px 16px',
+                                background: `${currentLevel.color}15`,
+                                color: currentLevel.color,
+                                borderRadius: '20px',
+                                fontSize: '14px',
+                                fontWeight: 600,
                             }}>
                                 {currentLevel.level}
-                            </div>
-                        </div>
+                            </span>
+                        </section>
 
                         {/* 시간대별 차트 */}
-                        <div style={{
-                            background: 'rgba(255,255,255,0.05)',
-                            borderRadius: '1rem',
-                            padding: '2rem',
+                        <section style={{
+                            background: '#fff',
+                            borderRadius: '16px',
+                            padding: '24px',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                         }}>
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>
-                                📊 시간대별 혼잡도
+                            <h2 style={{
+                                fontSize: '17px',
+                                fontWeight: 600,
+                                color: '#1d1d1f',
+                                marginBottom: '20px',
+                            }}>
+                                시간대별 혼잡도
                             </h2>
-                            <div style={{ overflowX: 'auto' }}>
-                                <div style={{ display: 'flex', gap: '4px', alignItems: 'flex-end', height: '200px', minWidth: '800px' }}>
+                            <div style={{ overflowX: 'auto', paddingBottom: '8px' }}>
+                                <div style={{
+                                    display: 'flex',
+                                    gap: '3px',
+                                    alignItems: 'flex-end',
+                                    height: '160px',
+                                    minWidth: '700px',
+                                }}>
                                     {TIME_SLOTS.map(slot => {
                                         const value = parseFloat(String(congestionData[slot] || '0'));
                                         const level = getCongestionLevel(value);
-                                        const height = Math.min((value / 150) * 100, 100);
+                                        const height = Math.max((value / 130) * 100, 4);
                                         const isCurrentTime = slot === currentTimeSlot;
 
                                         return (
@@ -281,63 +372,80 @@ export default function SubwayPage() {
                                                     display: 'flex',
                                                     flexDirection: 'column',
                                                     alignItems: 'center',
-                                                    gap: '4px',
                                                 }}
                                             >
-                                                <span style={{ fontSize: '0.6rem', color: '#94a3b8' }}>{value.toFixed(0)}%</span>
                                                 <div
                                                     style={{
                                                         width: '100%',
                                                         height: `${height}%`,
                                                         background: isCurrentTime
-                                                            ? `linear-gradient(180deg, ${level.color}, ${LINE_COLORS[selectedLine]})`
-                                                            : level.color,
+                                                            ? level.color
+                                                            : `${level.color}60`,
                                                         borderRadius: '4px 4px 0 0',
-                                                        transition: 'height 0.3s',
-                                                        boxShadow: isCurrentTime ? `0 0 20px ${level.color}` : 'none',
-                                                        border: isCurrentTime ? '2px solid #fff' : 'none',
+                                                        transition: 'height 0.3s ease',
                                                     }}
                                                 />
-                                                <span style={{
-                                                    fontSize: '0.5rem',
-                                                    color: isCurrentTime ? '#fff' : '#64748b',
-                                                    fontWeight: isCurrentTime ? 'bold' : 'normal',
-                                                    writingMode: 'vertical-rl',
-                                                    height: '50px',
-                                                }}>
-                                                    {slot.replace('시', ':').replace('분', '')}
-                                                </span>
                                             </div>
                                         );
                                     })}
                                 </div>
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    marginTop: '8px',
+                                    fontSize: '11px',
+                                    color: '#86868b',
+                                }}>
+                                    <span>05:30</span>
+                                    <span>12:00</span>
+                                    <span>18:00</span>
+                                    <span>00:00</span>
+                                </div>
                             </div>
 
                             {/* 범례 */}
-                            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+                            <div style={{
+                                display: 'flex',
+                                gap: '16px',
+                                justifyContent: 'center',
+                                marginTop: '20px',
+                                flexWrap: 'wrap',
+                            }}>
                                 {[
-                                    { label: '여유 (0-50%)', color: '#10B981' },
-                                    { label: '보통 (50-80%)', color: '#F59E0B' },
-                                    { label: '혼잡 (80-100%)', color: '#F97316' },
-                                    { label: '매우혼잡 (100%+)', color: '#EF4444' },
+                                    { label: '여유', color: '#34C759' },
+                                    { label: '보통', color: '#FF9500' },
+                                    { label: '혼잡', color: '#FF3B30' },
+                                    { label: '매우혼잡', color: '#AF52DE' },
                                 ].map(item => (
-                                    <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <div style={{ width: '12px', height: '12px', background: item.color, borderRadius: '2px' }} />
-                                        <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{item.label}</span>
+                                    <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <div style={{
+                                            width: '8px',
+                                            height: '8px',
+                                            background: item.color,
+                                            borderRadius: '50%',
+                                        }} />
+                                        <span style={{ fontSize: '12px', color: '#86868b' }}>{item.label}</span>
                                     </div>
                                 ))}
                             </div>
-                        </div>
+                        </section>
                     </>
                 )}
 
-                {/* 역 정보 없을 때 */}
+                {/* 데이터 없음 */}
                 {!congestionData && !loading && !error && selectedStation && (
-                    <div style={{ textAlign: 'center', padding: '3rem', background: 'rgba(255,255,255,0.05)', borderRadius: '1rem' }}>
-                        <p style={{ color: '#94a3b8' }}>선택한 조건의 혼잡도 데이터가 없습니다.</p>
+                    <div style={{
+                        textAlign: 'center',
+                        padding: '60px 20px',
+                        background: '#fff',
+                        borderRadius: '16px',
+                    }}>
+                        <p style={{ color: '#86868b', fontSize: '15px', margin: 0 }}>
+                            선택한 조건의 데이터가 없습니다.
+                        </p>
                     </div>
                 )}
-            </div>
+            </main>
         </div>
     );
 }
