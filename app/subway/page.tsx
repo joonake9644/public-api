@@ -78,7 +78,7 @@ export default function SubwayPage() {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch('/api/subway/congestion?perPage=1000');
+            const response = await fetch('/api/subway/congestion?page=1&perPage=1000');
             const result: ApiResponse = await response.json();
             if (result.success && result.data?.data) {
                 setAllData(result.data.data);
