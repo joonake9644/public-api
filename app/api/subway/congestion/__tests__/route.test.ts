@@ -2,20 +2,23 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { GET } from '../route';
 
-const mockGetCached = vi.fn();
-const mockCheckLimit = vi.fn();
-const mockToHeadersRecord = vi.fn(() => ({
-  'X-RateLimit-Limit': '100',
-  'X-RateLimit-Remaining': '99',
-  'X-RateLimit-Reset': `${Math.floor(Date.now() / 1000) + 60}`,
+// Use vi.hoisted() to ensure mocks are available before vi.mock() calls
+const { mockGetCached, mockCheckLimit, mockToHeadersRecord, mockGetIdentifierFromRequest, mockLogger } = vi.hoisted(() => ({
+  mockGetCached: vi.fn(),
+  mockCheckLimit: vi.fn(),
+  mockToHeadersRecord: vi.fn(() => ({
+    'X-RateLimit-Limit': '100',
+    'X-RateLimit-Remaining': '99',
+    'X-RateLimit-Reset': `${Math.floor(Date.now() / 1000) + 60}`,
+  })),
+  mockGetIdentifierFromRequest: vi.fn(() => '127.0.0.1'),
+  mockLogger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
 }));
-const mockGetIdentifierFromRequest = vi.fn(() => '127.0.0.1');
-const mockLogger = {
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-};
 
 vi.mock('@/src/lib/api', () => ({
   publicDataClient: {

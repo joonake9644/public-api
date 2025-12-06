@@ -39,7 +39,7 @@ const QuerySchema = z.object({
 });
 
 const DATASET_ENDPOINT =
-  'https://api.odcloud.kr/api/15071311/v1/uddi:dd6fa0b1-5f6e-4923-b36d-bbb72411c474';
+  'https://api.odcloud.kr/api/15071311/v1/uddi:daf4624e-d52d-4b09-856b-e1c13749b20e';
 
 export async function GET(request: NextRequest) {
   const startedAt = Date.now();
